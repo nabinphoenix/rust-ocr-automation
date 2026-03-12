@@ -1,4 +1,5 @@
-// Result manager - stores results and prints/saves them
+// This module organizes the results from the math engine.
+// It formats the output and saves a summary to a text file.
 
 use std::collections::HashMap;
 use std::fs::OpenOptions;
@@ -7,7 +8,7 @@ use std::io::Write;
 use crate::expression_evaluator::EvalResult;
 use crate::expression_detector::index_to_label;
 
-// Struct for one result entry
+// Holds a single solved math problem.
 #[derive(Debug, Clone)]
 pub struct ResultEntry {
     pub label: char,
@@ -16,7 +17,7 @@ pub struct ResultEntry {
     pub is_integer: bool,
 }
 
-// Enum for where to send the output
+// Defines where the final answers should be displayed.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum OutputFormat {
@@ -25,11 +26,10 @@ pub enum OutputFormat {
     Both(String),
 }
 
-// Struct that manages all the results
 pub struct ResultManager {
     entries: Vec<ResultEntry>,
     expression_map: HashMap<String, f64>,
-    error_log: Vec<(String, String)>,   // tuples of (expression, error message)
+    error_log: Vec<(String, String)>,
     output_format: OutputFormat,
     source_name: Option<String>,
 }
@@ -45,12 +45,12 @@ impl ResultManager {
         }
     }
 
-    // Set the source name (e.g., filename) for the output header
+    // Set the name of the source (like 'image.png') to display in the header.
     pub fn set_source_name(&mut self, name: &str) {
         self.source_name = Some(name.to_string());
     }
 
-    // Add a successful result
+    // Register a successfully solved equation.
     pub fn add_result(&mut self, expression: &str, result: f64) {
         let index = self.entries.len();
         let label = index_to_label(index);
@@ -67,12 +67,12 @@ impl ResultManager {
         self.expression_map.insert(expression.to_string(), result);
     }
 
-    // Add a failed result
+    // Register an error for an equation that could not be solved.
     pub fn add_error(&mut self, expression: &str, error: &str) {
         self.error_log.push((expression.to_string(), error.to_string()));
     }
 
-    // Go through evaluation results and sort them into success/error
+    // Takes a list of raw evaluation results and sorts them into successes and errors.
     pub fn process_results(&mut self, results: &[(String, EvalResult)]) {
         for (expr, eval_result) in results {
             match eval_result {
@@ -86,7 +86,7 @@ impl ResultManager {
         }
     }
 
-    // Build a formatted string of all results
+    // Builds the final text summary that the user sees.
     pub fn format_results(&self) -> String {
         let mut output = String::new();
 
@@ -96,7 +96,7 @@ impl ResultManager {
         }
 
         if self.entries.is_empty() {
-            output.push_str("  (No results found)\n");
+            output.push_str("  (No mathematical results were found to display)\n");
             return output;
         }
 
@@ -109,25 +109,24 @@ impl ResultManager {
             output.push_str(&format!("  {}. {} = {}\n", entry.label, entry.expression, value_str));
         }
 
-        // Summary line
         let total = self.entries.len() + self.error_log.len();
         output.push_str(&format!(
-            "\nTotal Solved: {}/{} successful.\n",
+            "\nSummary: {} out of {} problems were solved successfully.\n",
             self.entries.len(), total
         ));
 
-        // Show errors
+        // List any problems that could not be solved.
         if !self.error_log.is_empty() {
-            output.push_str("\nErrors encountered:\n");
+            output.push_str("\nIssues found:\n");
             for (expr, error) in &self.error_log {
-                output.push_str(&format!("  \"{}\" - {}\n", expr, error));
+                output.push_str(&format!("  Equation \"{}\" failed because: {}\n", expr, error));
             }
         }
 
         output
     }
 
-    // Print or save results based on the output format
+    // Print to the console and/or save to a file.
     pub fn display_results(&self) {
         let formatted = self.format_results();
 
@@ -145,7 +144,7 @@ impl ResultManager {
         }
     }
 
-    // Append results to a file (doesn't overwrite)
+    // Appends the summary to a text file without deleting previous contents.
     fn append_to_file(&self, path: &str, content: &str) {
         let file = OpenOptions::new()
             .create(true)
@@ -155,30 +154,10 @@ impl ResultManager {
         match file {
             Ok(mut f) => {
                 if let Err(e) = f.write_all(content.as_bytes()) {
-                    println!("Failed to write to {}: {}", path, e);
+                    println!("Warning: Could not save results to file {}: {}", path, e);
                 }
             }
-            Err(e) => println!("Failed to open file {}: {}", path, e),
+            Err(e) => println!("Warning: Could not open the results file {}: {}", path, e),
         }
-    }
-
-    #[allow(dead_code)]
-    pub fn lookup(&self, expression: &str) -> Option<&f64> {
-        self.expression_map.get(expression)
-    }
-
-    #[allow(dead_code)]
-    pub fn get_entries(&self) -> &Vec<ResultEntry> {
-        &self.entries
-    }
-
-    #[allow(dead_code)]
-    pub fn entry_count(&self) -> usize {
-        self.entries.len()
-    }
-
-    #[allow(dead_code)]
-    pub fn error_count(&self) -> usize {
-        self.error_log.len()
     }
 }

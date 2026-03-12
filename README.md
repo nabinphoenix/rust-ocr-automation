@@ -26,9 +26,9 @@ Before you start, make sure you have these tools installed on your computer:
     *   **Windows**: [Download installer](https://github.com/UB-Mannheim/tesseract/wiki).
     *   **Mac**: Run `brew install tesseract`.
     *   **Linux**: Run `sudo apt install tesseract-ocr`.
-4.  **Python Libraries**: Open your terminal and run:
+4.  **Python Libraries**: You can install all needed libraries at once using the `requirements.txt` file:
     ```bash
-    pip install pytesseract opencv-python numpy pillow
+    pip install -r requirements.txt
     ```
 
 ---

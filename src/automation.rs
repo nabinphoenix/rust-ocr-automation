@@ -1,4 +1,5 @@
-// Automation module - uses Enigo to simulate keyboard and mouse
+// This module handles standard computer interactions using the keyboard and mouse.
+// It is used to simulate typing or clicking on the screen.
 
 use enigo::{
     Enigo, Keyboard, Mouse, Settings,
@@ -9,7 +10,6 @@ use arboard::Clipboard;
 use std::thread;
 use std::time::Duration;
 
-// Enum for the different types of actions we can do
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum AutomationAction {
@@ -19,7 +19,6 @@ pub enum AutomationAction {
     KeyPress(String),
 }
 
-// Struct that holds the Enigo instance and a log of actions
 pub struct Automator {
     enigo: Enigo,
     clipboard: Option<Clipboard>,
@@ -29,35 +28,36 @@ pub struct Automator {
 impl Automator {
     pub fn new() -> Self {
         let enigo = Enigo::new(&Settings::default())
-            .expect("Failed to start Enigo");
+            .expect("Could not initialize the automation controller.");
         let clipboard = Clipboard::new().ok();
         let action_log: Vec<AutomationAction> = Vec::new();
         Automator { enigo, clipboard, action_log }
     }
 
-    // Type text using keyboard simulation with a human-like delay
+    // Types out a string of text with a natural-looking delay between keys.
     pub fn type_text(&mut self, text: &str) {
-        println!("  Typing: \"{}\"", text.trim());
+        println!("  Typing text: \"{}\"", text.trim());
         
         for c in text.chars() {
             match self.enigo.text(&c.to_string()) {
                 Ok(_) => {
+                    // Small delay to prevent typing errors.
                     thread::sleep(Duration::from_millis(30));
                 }
-                Err(e) => println!("  Failed to type character: {}", e),
+                Err(e) => println!("  Typing Error: {}", e),
             }
         }
         
         self.action_log.push(AutomationAction::TypeText(text.to_string()));
     }
 
-    // Press a single key
+    // Single key press and release.
     pub fn key_click(&mut self, key: Key) {
         let _ = self.enigo.key(key, Click);
         thread::sleep(Duration::from_millis(100));
     }
 
-    // Perform a combination like Ctrl+C
+    // Simulates holding a modifier key while pressing another key (like Ctrl+C).
     pub fn key_combination(&mut self, modifier: Key, key: Key) {
         let _ = self.enigo.key(modifier, Press);
         thread::sleep(Duration::from_millis(50));
@@ -67,19 +67,6 @@ impl Automator {
         thread::sleep(Duration::from_millis(100));
     }
 
-    // Clear clipboard
-    pub fn clear_clipboard(&mut self) {
-        if let Some(ref mut cb) = self.clipboard {
-            let _ = cb.set_text("");
-        }
-    }
-
-    // Get text from clipboard (Alias for compatibility)
-    pub fn get_clipboard_text(&mut self) -> String {
-        self.get_clipboard()
-    }
-
-    // Get text from clipboard
     pub fn get_clipboard(&mut self) -> String {
         if let Some(ref mut cb) = self.clipboard {
             match cb.get_text() {
@@ -91,54 +78,26 @@ impl Automator {
         }
     }
 
-    // Move the mouse to a position
+    // Moves the mouse pointer to a specific coordinate on the screen.
     #[allow(dead_code)]
     pub fn move_mouse(&mut self, x: i32, y: i32) {
-        println!("  Moving mouse to ({}, {})", x, y);
+        println!("  Moving mouse to position ({}, {})", x, y);
         match self.enigo.move_mouse(x, y, Abs) {
             Ok(_) => {}
-            Err(e) => println!("  Failed to move mouse: {}", e),
+            Err(e) => println!("  Mouse Movement Error: {}", e),
         }
         self.action_log.push(AutomationAction::MoveMouse(x, y));
     }
 
-    // Click at a position
+    // Moves the mouse and performs a left-click.
     #[allow(dead_code)]
     pub fn click_at(&mut self, x: i32, y: i32) {
         println!("  Clicking at ({}, {})", x, y);
         let _ = self.enigo.move_mouse(x, y, Abs);
         match self.enigo.button(Button::Left, Click) {
             Ok(_) => {}
-            Err(e) => println!("  Failed to click: {}", e),
+            Err(e) => println!("  Click Error: {}", e),
         }
         self.action_log.push(AutomationAction::ClickMouse(x, y));
     }
-
-    // Borrow the action log (read-only reference)
-    #[allow(dead_code)]
-    pub fn get_action_log(&self) -> &Vec<AutomationAction> {
-        &self.action_log
-    }
-
-    // Print what actions were performed
-    #[allow(dead_code)]
-    pub fn print_action_log(&self) {
-        println!("\nAction Log:");
-
-        if self.action_log.is_empty() {
-            println!("  No actions yet.");
-            return;
-        }
-
-        for (i, action) in self.action_log.iter().enumerate() {
-            let desc = match action {
-                AutomationAction::TypeText(text) => format!("Typed: \"{}\"", text.trim()),
-                AutomationAction::MoveMouse(x, y) => format!("Moved mouse to ({}, {})", x, y),
-                AutomationAction::ClickMouse(x, y) => format!("Clicked at ({}, {})", x, y),
-                AutomationAction::KeyPress(key) => format!("Pressed: {}", key),
-            };
-            println!("  {}. {}", i + 1, desc);
-        }
-    }
-
 }

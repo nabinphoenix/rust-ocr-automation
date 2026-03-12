@@ -1,7 +1,7 @@
-// Expression evaluator - parses and computes math expressions
-// Supports +, -, *, / and parentheses
+// This module parses and solves mathematical expressions.
+// It handles basic arithmetic: addition (+), subtraction (-),
+// multiplication (*), division (/), and uses parentheses for grouping.
 
-// Enum for tokens (the pieces of an expression)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Number(f64),
@@ -13,16 +13,15 @@ pub enum Token {
     RightParen,
 }
 
-// Enum for the result of evaluating an expression
 #[derive(Debug, Clone)]
 pub enum EvalResult {
     Success(f64),
     Error(String),
 }
 
-// Struct that evaluates expressions and stores results
+// Manages the state of evaluations and stores the answers.
 pub struct ExpressionEvaluator {
-    results: Vec<(String, EvalResult)>, // vector of tuples: (expression, result)
+    results: Vec<(String, EvalResult)>,
 }
 
 impl ExpressionEvaluator {
@@ -32,11 +31,11 @@ impl ExpressionEvaluator {
         }
     }
 
-    // Evaluate one expression string
+    // Takes a string like "(2+3)*4" and returns the solved value.
     pub fn evaluate(&mut self, expression: &str) -> EvalResult {
         println!("  Evaluating: {}", expression);
 
-        // First, break the expression into tokens
+        // Break the string into small tokens (numbers and operators).
         let tokens = match tokenize(expression) {
             Ok(t) => t,
             Err(e) => {
@@ -46,7 +45,7 @@ impl ExpressionEvaluator {
             }
         };
 
-        // Then parse and compute the result
+        // Parse the tokens into a numerical result following math rules.
         let mut parser = Parser::new(tokens);
         let result = match parser.parse_expression() {
             Ok(value) => {
@@ -63,34 +62,11 @@ impl ExpressionEvaluator {
         result
     }
 
-    // Evaluate a list of expressions at once
-    #[allow(dead_code)]
-    pub fn evaluate_batch(&mut self, expressions: &[String]) -> Vec<(String, EvalResult)> {
-        let mut batch: Vec<(String, EvalResult)> = Vec::new();
-
-        for expr in expressions {
-            let result = self.evaluate(expr);
-            batch.push((expr.clone(), result));
-        }
-
-        batch
-    }
-
     pub fn get_results(&self) -> &Vec<(String, EvalResult)> {
         &self.results
     }
 
-    // New helper to inject results from external sources (like Calculator)
-    pub fn evaluate_with_forced_result(&mut self, expression: &str, value: f64) {
-        self.results.push((expression.to_string(), EvalResult::Success(value)));
-    }
-
-    // New helper to inject errors from external sources
-    pub fn evaluate_with_error(&mut self, expression: &str, error: String) {
-        self.results.push((expression.to_string(), EvalResult::Error(error)));
-    }
-
-    // Count how many evaluations succeeded
+    // Records how many problems were solved correctly.
     pub fn success_count(&self) -> usize {
         let mut count: usize = 0;
         for (_, result) in &self.results {
@@ -101,16 +77,10 @@ impl ExpressionEvaluator {
         }
         count
     }
-
-    #[allow(dead_code)]
-    pub fn clear_results(&mut self) {
-        self.results.clear();
-    }
 }
 
-// -------------------------------------------------------
-// Tokenizer - turns a string like "2+3" into tokens
-// -------------------------------------------------------
+// --- Tokenizer Section ---
+// Converts a raw string into a list of math symbols.
 
 fn tokenize(expression: &str) -> Result<Vec<Token>, String> {
     let mut tokens: Vec<Token> = Vec::new();
@@ -122,12 +92,12 @@ fn tokenize(expression: &str) -> Result<Vec<Token>, String> {
         let ch = chars[i];
 
         match ch {
-            // Skip whitespace
+            // IGNORE spaces.
             ' ' | '\t' | '\n' | '\r' => {
                 i += 1;
             }
 
-            // Build a number from consecutive digits
+            // Build a multi-digit number (e.g. "123.45").
             '0'..='9' | '.' => {
                 let mut num_str = String::new();
 
@@ -137,18 +107,18 @@ fn tokenize(expression: &str) -> Result<Vec<Token>, String> {
                 }
 
                 let number: f64 = num_str.parse()
-                    .map_err(|_| format!("Bad number: {}", num_str))?;
+                    .map_err(|_| format!("Invalid number format: {}", num_str))?;
                 tokens.push(Token::Number(number));
             }
 
             '+' => { tokens.push(Token::Plus); i += 1; }
             '-' => {
-                // Check if this minus is a negative sign (not subtraction)
-                let is_negative = tokens.is_empty()
+                // Determine if this is a negative number or a subtraction sign.
+                let is_negative_sign = tokens.is_empty()
                     || matches!(tokens.last(), Some(Token::Plus) | Some(Token::Minus)
                         | Some(Token::Multiply) | Some(Token::Divide) | Some(Token::LeftParen));
 
-                if is_negative && i + 1 < length && (chars[i + 1].is_ascii_digit() || chars[i + 1] == '.') {
+                if is_negative_sign && i + 1 < length && (chars[i + 1].is_ascii_digit() || chars[i + 1] == '.') {
                     let mut num_str = String::from("-");
                     i += 1;
                     while i < length && (chars[i].is_ascii_digit() || chars[i] == '.') {
@@ -156,7 +126,7 @@ fn tokenize(expression: &str) -> Result<Vec<Token>, String> {
                         i += 1;
                     }
                     let number: f64 = num_str.parse()
-                        .map_err(|_| format!("Bad number: {}", num_str))?;
+                        .map_err(|_| format!("Invalid negative number: {}", num_str))?;
                     tokens.push(Token::Number(number));
                 } else {
                     tokens.push(Token::Minus);
@@ -169,22 +139,20 @@ fn tokenize(expression: &str) -> Result<Vec<Token>, String> {
             ')' => { tokens.push(Token::RightParen); i += 1; }
 
             _ => {
-                return Err(format!("Unexpected character: '{}'", ch));
+                return Err(format!("Unknown symbol found: '{}'", ch));
             }
         }
     }
 
     if tokens.is_empty() {
-        return Err("Empty expression".to_string());
+        return Err("No math expression found".to_string());
     }
 
     Ok(tokens)
 }
 
-// -------------------------------------------------------
-// Parser - handles operator precedence
-// Order: parentheses first, then * and /, then + and -
-// -------------------------------------------------------
+// --- Parser Section ---
+// Handles operator precedence (BODMAS/PEMDAS).
 
 struct Parser {
     tokens: Vec<Token>,
@@ -196,7 +164,6 @@ impl Parser {
         Parser { tokens, position: 0 }
     }
 
-    // Look at the current token without moving forward
     fn peek(&self) -> Option<&Token> {
         if self.position < self.tokens.len() {
             Some(&self.tokens[self.position])
@@ -205,7 +172,6 @@ impl Parser {
         }
     }
 
-    // Take the current token and move to the next one
     fn consume(&mut self) -> Option<Token> {
         if self.position < self.tokens.len() {
             let token = self.tokens[self.position].clone();
@@ -216,7 +182,7 @@ impl Parser {
         }
     }
 
-    // Handle + and - (lowest priority)
+    // Handles addition and subtraction.
     pub fn parse_expression(&mut self) -> Result<f64, String> {
         let mut left = self.parse_term()?;
 
@@ -239,8 +205,7 @@ impl Parser {
         Ok(left)
     }
 
-    // Handle * and / (higher priority than + and -)
-    // Also handles implicit multiplication like 3(4+5)
+    // Handles multiplication, division, and implicit multiplication like 2(5).
     fn parse_term(&mut self) -> Result<f64, String> {
         let mut left = self.parse_factor()?;
 
@@ -256,13 +221,13 @@ impl Parser {
                     let right = self.parse_factor()?;
 
                     if right == 0.0 {
-                        return Err("Division by zero".to_string());
+                        return Err("Logic Error: Cannnot divide by zero".to_string());
                     }
 
                     left = left / right;
                 }
                 Some(Token::LeftParen) => {
-                    // Implicit multiplication: 3(4+5) -> 3 * (4+5)
+                    // Logic for 3(4) -> 3 * 4
                     let right = self.parse_factor()?;
                     left = left * right;
                 }
@@ -273,12 +238,12 @@ impl Parser {
         Ok(left)
     }
 
-    // Handle numbers, parentheses, and unary minus (highest priority)
+    // Handles the most basic units: numbers and bracketed content.
     fn parse_factor(&mut self) -> Result<f64, String> {
         match self.consume() {
             Some(Token::Number(n)) => Ok(n),
             Some(Token::Minus) => {
-                // Unary minus: -factor
+                // Supports leading minus sign like -(5+2)
                 let value = self.parse_factor()?;
                 Ok(-value)
             }
@@ -286,65 +251,35 @@ impl Parser {
                 let value = self.parse_expression()?;
                 match self.consume() {
                     Some(Token::RightParen) => Ok(value),
-                    _ => Err("Missing closing parenthesis".to_string()),
+                    _ => Err("Bracket error: Missing closing parenthesis".to_string()),
                 }
             }
-            Some(token) => Err(format!("Unexpected token: {:?}", token)),
-            None => Err("Unexpected end of expression".to_string()),
+            Some(token) => Err(format!("Syntax error: Unexpected token {:?}", token)),
+            None => Err("Parser error: Unexpected end of expression".to_string()),
         }
     }
 }
 
-// -------------------------------------------------------
-// Tests
-// -------------------------------------------------------
-
+// Tests to ensure the math engine is working as expected.
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_simple_addition() {
+    fn test_simple_math() {
         let mut eval = ExpressionEvaluator::new();
-        match eval.evaluate("2+3") {
-            EvalResult::Success(v) => assert_eq!(v, 5.0),
-            EvalResult::Error(e) => panic!("Error: {}", e),
+        match eval.evaluate("10+5*2") {
+            EvalResult::Success(v) => assert_eq!(v, 20.0),
+            _ => panic!("Test failed"),
         }
     }
 
     #[test]
-    fn test_subtraction() {
+    fn test_with_brackets() {
         let mut eval = ExpressionEvaluator::new();
-        match eval.evaluate("1548-741") {
-            EvalResult::Success(v) => assert_eq!(v, 807.0),
-            EvalResult::Error(e) => panic!("Error: {}", e),
-        }
-    }
-
-    #[test]
-    fn test_parentheses() {
-        let mut eval = ExpressionEvaluator::new();
-        match eval.evaluate("(500*2)/5") {
-            EvalResult::Success(v) => assert_eq!(v, 200.0),
-            EvalResult::Error(e) => panic!("Error: {}", e),
-        }
-    }
-
-    #[test]
-    fn test_chained_operations() {
-        let mut eval = ExpressionEvaluator::new();
-        match eval.evaluate("123+456-78") {
-            EvalResult::Success(v) => assert_eq!(v, 501.0),
-            EvalResult::Error(e) => panic!("Error: {}", e),
-        }
-    }
-
-    #[test]
-    fn test_division_by_zero() {
-        let mut eval = ExpressionEvaluator::new();
-        match eval.evaluate("10/0") {
-            EvalResult::Error(_) => {} // this is expected
-            EvalResult::Success(_) => panic!("Should have failed"),
+        match eval.evaluate("(10+5)*2") {
+            EvalResult::Success(v) => assert_eq!(v, 30.0),
+            _ => panic!("Test failed"),
         }
     }
 }

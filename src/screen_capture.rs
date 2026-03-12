@@ -1,4 +1,5 @@
-// Screen capture module - takes screenshots and calls Python OCR
+// This module takes screenshots of the computer screen and 
+// sends them to the Python OCR engine to be read.
 
 use std::process::Command;
 use std::path::Path;
@@ -7,7 +8,6 @@ use std::fs;
 const SCREENSHOT_FILENAME: &str = "screenshot.png";
 const PYTHON_SCRIPT: &str = "python_ocr/ocr_engine.py";
 
-// Struct to manage screen capture
 pub struct ScreenCapture {
     output_dir: String,
     screenshot_path: String,
@@ -16,10 +16,10 @@ pub struct ScreenCapture {
 
 impl ScreenCapture {
     pub fn new(output_dir: &str) -> Self {
-        // Create output folder if it doesn't exist
+        // Create the output folder if it doesn't already exist.
         if !Path::new(output_dir).exists() {
             fs::create_dir_all(output_dir)
-                .expect("Failed to create output directory");
+                .expect("Critical Error: Could not create the output directory.");
         }
 
         let screenshot_path = format!("{}/{}", output_dir, SCREENSHOT_FILENAME);
@@ -31,48 +31,49 @@ impl ScreenCapture {
         }
     }
 
-    // Take a screenshot of the screen
+    // Capture the primary monitor and save it as a PNG file.
     pub fn capture_screen(&mut self) -> Result<String, String> {
-        println!("  Capturing screenshot...");
+        println!("  Capturing the current screen...");
 
         let screens = screenshots::Screen::all()
-            .map_err(|e| format!("Could not find screens: {}", e))?;
+            .map_err(|e| format!("Could not detect any screens: {}", e))?;
 
         if screens.is_empty() {
-            return Err("No screens found".to_string());
+            return Err("No computer monitor was found.".to_string());
         }
 
+        // Capture the first (primary) monitor.
         let screen = &screens[0];
 
         let image = screen.capture()
-            .map_err(|e| format!("Could not capture screen: {}", e))?;
+            .map_err(|e| format!("Screen capture failed: {}", e))?;
 
         let save_path = format!("{}/screenshot_{}.png", self.output_dir, self.capture_count);
 
         image.save(&save_path)
-            .map_err(|e| format!("Could not save screenshot: {}", e))?;
+            .map_err(|e| format!("Failed to save the image file: {}", e))?;
 
         self.screenshot_path = save_path.clone();
         self.capture_count += 1;
 
-        println!("  Screenshot saved: {}", save_path);
+        println!("  Screen captured successfully: {}", save_path);
         Ok(save_path)
     }
 
-    // Call the Python OCR script on an image
+    // Call the external Python script to read the numbers from the image.
     pub fn run_ocr(&self, image_path: &str) -> Result<String, String> {
-        println!("  Running OCR on: {}", image_path);
+        println!("  Analyzing image text: {}", image_path);
 
         if !Path::new(PYTHON_SCRIPT).exists() {
-            return Err(format!("Python script not found: {}", PYTHON_SCRIPT));
+            return Err("The Python OCR script is missing from the directory.".to_string());
         }
 
         if !Path::new(image_path).exists() {
-            return Err(format!("Image not found: {}", image_path));
+            return Err("The image file could not be found for analysis.".to_string());
         }
 
-        // Run the python script and capture its output
-        // Try "python" first, fallback to "python3" (common on Mac/Linux)
+        // Run the python script and capture the text it returns.
+        // We try "python" first, and if that doesn't work (like on Mac/Linux), we try "python3".
         let output = match Command::new("python")
             .arg(PYTHON_SCRIPT)
             .arg(image_path)
@@ -84,41 +85,19 @@ impl ScreenCapture {
                         .arg(image_path)
                         .output()
                 }
-            }.map_err(|e| format!("Could not run Python or Python3: {}", e))?;
+            }.map_err(|e| format!("Error: Python is not installed or not working: {}", e))?;
 
         if output.status.success() {
             let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if text.is_empty() {
-                Err("OCR returned no text".to_string())
+                Err("The image analysis returned no text.".to_string())
             } else {
-                println!("  OCR got {} characters", text.len());
+                println!("  Successfully read {} characters from the image.", text.len());
                 Ok(text)
             }
         } else {
             let err = String::from_utf8_lossy(&output.stderr).to_string();
-            Err(format!("OCR failed: {}", err))
+            Err(format!("Image analysis error: {}", err))
         }
-    }
-
-    // Take a screenshot and run OCR in one go
-    #[allow(dead_code)]
-    pub fn capture_and_ocr(&mut self) -> Result<String, String> {
-        let path = self.capture_screen()?;
-        self.run_ocr(&path)
-    }
-
-    #[allow(dead_code)]
-    pub fn get_screenshot_path(&self) -> &str {
-        &self.screenshot_path
-    }
-
-    #[allow(dead_code)]
-    pub fn get_capture_count(&self) -> u32 {
-        self.capture_count
-    }
-
-    #[allow(dead_code)]
-    pub fn get_output_dir(&self) -> &str {
-        &self.output_dir
     }
 }

@@ -1,17 +1,16 @@
-// Expression detector - finds math expressions in text using regex
+// This module finds math equations inside a block of plain text using regular expressions.
 
 use regex::Regex;
 
-// Struct for a single detected expression
+// Represents a math problem found in the text.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct DetectedExpression {
-    pub raw_text: String,    // What the regex matched
-    pub cleaned: String,     // Cleaned up version (no spaces)
-    pub position: usize,     // Index in the list
+    pub raw_text: String,    // The exact text we found.
+    pub cleaned: String,     // Cleaned version (no spaces, standardized symbols).
+    pub position: usize,     // Where it sits in the list.
 }
 
-// Struct that does the actual detection
 pub struct ExpressionDetector {
     patterns: Vec<String>,
     detected: Vec<DetectedExpression>,
@@ -19,14 +18,15 @@ pub struct ExpressionDetector {
 
 impl ExpressionDetector {
     pub fn new() -> Self {
-        // IMPROVED: Strict single-line patterns to avoid catching S.No or crossing lines
+        // We look for patterns that look like equations on a single line.
         let pattern_array: [&str; 4] = [
-            // Long chains: Must contain at least one operator, strictly horizontal space
+            // Matches long chains of numbers and operators.
             r"(?m)(?:\d+(?:\.\d+)?|\([\d\.[ \t]\+\-\*\/\u{00D7}\u{00F7}\u{2212}xX\(\)]+)[ \t]*[\+\-\*\/\u{00D7}\u{00F7}\u{2212}xX\(\)][ \t]*[\d\.\+\-\*\/\u{00D7}\u{00F7}\u{2212}xX\(\) \t]+",
-            // Simple binary operation
+            // Simple multiplication/addition between two numbers.
             r"\d+(?:\.\d+)?[ \t]*[\+\-\*\/\u{00D7}\u{00F7}\u{2212}xX\(\)][ \t]*\d+(?:\.\d+)?",
-            // Parentheses block on one line
+            // Content inside parentheses.
             r"\([\d\.\+\-\*\/\u{00D7}\u{00F7}\u{2212}xX\(\) \t]+\)",
+            // Basic two-digit math without spaces.
             r"\d+[\+\-\*\/\u{00D7}\u{00F7}\u{2212}xX]\d+",
         ];
 
@@ -41,11 +41,11 @@ impl ExpressionDetector {
         }
     }
 
-    // Scan text and find all math expressions
+    // Scans a block of text and pulls out all the math.
     pub fn detect(&mut self, text: &str) -> Vec<DetectedExpression> {
         self.detected.clear();
 
-        // Track found ranges (start, end) to avoid double counting fragments
+        // Used to prevent picking up the same equation twice.
         let mut already_found: Vec<(usize, usize)> = Vec::new(); 
         let mut count: usize = 0;
 
@@ -59,7 +59,7 @@ impl ExpressionDetector {
                 let start = mat.start();
                 let end = mat.end();
 
-                // Check if this math expression is already partially inside another one
+                // Skip if this range overlaps with something we already found.
                 let mut overlapping = false;
                 for (s, e) in &already_found {
                     if (start >= *s && start < *e) || (end > *s && end <= *e) {
@@ -89,7 +89,7 @@ impl ExpressionDetector {
     }
 
     pub fn print_detected(&self) {
-        println!("\nI found {} expressions in your input:", self.detected.len());
+        println!("\nThe system detected {} math expressions:", self.detected.len());
         for (i, expr) in self.detected.iter().enumerate() {
             let label = index_to_label(i);
             println!("  {}. {}", label, expr.cleaned);
@@ -97,7 +97,7 @@ impl ExpressionDetector {
     }
 }
 
-// Clean up: remove spaces and change 'x' to '*'
+// Cleans up the raw text for the math engine.
 fn clean_expression(raw: &str) -> String {
     let mut cleaned = String::new();
 
@@ -107,8 +107,8 @@ fn clean_expression(raw: &str) -> String {
             '+' => cleaned.push('+'),
             '-' | '\u{2212}' => cleaned.push('-'),
             '*' | '/' | '(' | ')' => cleaned.push(ch),
-            'x' | 'X' | '×' => cleaned.push('*'), // Multiply
-            '÷' => cleaned.push('/'),             // Divide
+            'x' | 'X' | '×' => cleaned.push('*'), // Convert 'x' to '*'
+            '÷' => cleaned.push('/'),             // Convert division symbol
             _ => {}
         }
     }
@@ -116,6 +116,7 @@ fn clean_expression(raw: &str) -> String {
     cleaned
 }
 
+// Converts a list index (0, 1, 2) to a letter (a, b, c) for cleaner display.
 pub fn index_to_label(index: usize) -> char {
     let labels: [char; 26] = [
         'a','b','c','d','e','f','g','h','i','j',

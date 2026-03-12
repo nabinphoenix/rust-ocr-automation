@@ -1,4 +1,6 @@
-// Main file - runs the whole program step by step
+// This is the main controller of the application.
+// It handles user input from the menu and connects all the different parts like OCR, 
+// math evaluation, and saving results.
 
 mod automation;
 mod screen_capture;
@@ -12,7 +14,6 @@ use expression_evaluator::ExpressionEvaluator;
 use result_manager::{ResultManager, OutputFormat};
 use serde::Deserialize;
 
-use std::collections::HashMap;
 use std::io::{self, Write};
 use std::fs;
 use std::path::Path;
@@ -22,7 +23,7 @@ use std::time::Duration;
 const OUTPUT_DIR: &str = "output";
 const RESULTS_FILE: &str = "output/results.txt";
 
-// Enum to represent which input option the user picked
+// Different ways a user can provide math problems to the system.
 #[derive(Debug, Clone, PartialEq)]
 enum InputMethod {
     ImagePath,
@@ -31,6 +32,7 @@ enum InputMethod {
     Exit,
 }
 
+// Data structure to hold the JSON response coming from the Python OCR script.
 #[derive(Deserialize, Debug)]
 #[allow(dead_code)]
 struct OcrResponse {
@@ -45,7 +47,7 @@ struct OcrResultEntry {
     value: String,
 }
 
-// Reads a line from the user and returns it as a String
+// Simple helper to print a prompt and get a trimmed string from the user.
 fn read_input(prompt: &str) -> String {
     print!("{}", prompt);
     io::stdout().flush().unwrap();
@@ -53,17 +55,17 @@ fn read_input(prompt: &str) -> String {
     let mut input = String::new();
     io::stdin().read_line(&mut input).expect("Failed to read input");
     
-    // Trim spaces and remove quotes
+    // Cleanup: remove extra spaces and quotes if the user copied a path.
     input.trim().trim_matches('"').trim().to_string()
 }
 
-// Shows the menu and returns what the user picked
+// Display the main menu and get the user's choice.
 fn show_menu() -> InputMethod {
     println!("\n--- Select Input Method ---");
-    println!("  1. Enter Image Path  (run OCR on an image)");
-    println!("  2. Take Screenshot   (capture the screen)");
-    println!("  3. Enter File Path   (read text from a file)");
-    println!("  0. Exit              (close program)");
+    println!("  1. Enter Image Path  (Process a saved image)");
+    println!("  2. Take Screenshot   (Capture and solve from screen)");
+    println!("  3. Enter File Path   (Read equations from a text file)");
+    println!("  0. Exit              (Close the application)");
 
     loop {
         let choice = read_input("\nEnter your choice (1/2/3/0): ");
@@ -73,37 +75,38 @@ fn show_menu() -> InputMethod {
             "2" => return InputMethod::Screenshot,
             "3" => return InputMethod::TextFile,
             "0" | "exit" | "quit" => return InputMethod::Exit,
-            _ => println!("Invalid choice. Please enter 1, 2, 3, or 0."),
+            _ => println!("Invalid choice. Please pick a number from the menu."),
         }
     }
 }
 
-// Asks the user for an image path and checks if it exists
+// Ask for a file path and verify it actually exists on the computer.
 fn get_image_path() -> String {
     loop {
         let path = read_input("Enter the image path: ");
 
         if Path::new(&path).exists() {
             let lower = path.to_lowercase();
+            // Basic check for image extensions.
             if lower.ends_with(".png") || lower.ends_with(".jpg")
                 || lower.ends_with(".jpeg") || lower.ends_with(".bmp")
                 || lower.ends_with(".tiff")
             {
                 return path;
             } else {
-                println!("This file might not be an image.");
-                let confirm = read_input("Use it anyway? (y/n): ");
+                println!("Warning: This file might not be a valid image format.");
+                let confirm = read_input("Try to process it anyway? (y/n): ");
                 if confirm.to_lowercase() == "y" {
                     return path;
                 }
             }
         } else {
-            println!("File not found: {}", path);
+            println!("File not found. Please check the path and try again: {}", path);
         }
     }
 }
 
-// Asks the user for a text file path and checks if it exists
+// Get the path to a text file for reading equations directly.
 fn get_text_file_path() -> String {
     loop {
         let path = read_input("Enter the text file path: ");
@@ -112,14 +115,14 @@ fn get_text_file_path() -> String {
             match fs::read_to_string(&path) {
                 Ok(content) => {
                     if content.is_empty() {
-                        println!("File is empty, pick another one.");
+                        println!("This file is empty. Please pick a file with math problems.");
                     } else {
-                        println!("File loaded: {} ({} characters)", path, content.len());
+                        println!("File loaded successfully: {} ({} chars)", path, content.len());
                         return path;
                     }
                 }
                 Err(e) => {
-                    println!("Could not read file: {}", e);
+                    println!("Could not read the file: {}", e);
                 }
             }
         } else {
@@ -128,51 +131,48 @@ fn get_text_file_path() -> String {
     }
 }
 
-// Sample text used when OCR is not available
+// Fallback text used only if the OCR process fails completely.
 fn get_sample_text() -> String {
     String::from(
-        "Invoice #12345\n\
-         Item 1: 1548-741\n\
-         Item 2: (500*2)/5\n\
-         Adjustment: 123+456-78\n"
+        "Sample Math List:\n\
+         (500 * 2) / 5\n\
+         123 + 456 - 78\n"
     )
 }
 
 fn main() {
-    println!("\n=== Screen-Aware Math Automation System ===\n");
+    println!("\n=== Screen-Aware Math Automation System (for Treeleaf AI) ===\n");
 
-    // Choose Input
     let input_method = show_menu();
 
-    // Handle Exit
+    // End program if user chooses exit.
     if input_method == InputMethod::Exit {
-        println!("Goodbye!\n");
+        println!("Exiting program. Goodbye!\n");
         return;
     }
 
     let mut target_file: Option<String> = None;
-
-    // Process Input
-    println!("\n--- Processing Input ---");
-
-    // Step 2: Get text (OCR or File)
     let mut expressions: Vec<String> = Vec::new();
-    let mut source_name = String::from("Unknown");
-    let ocr_text: String = match input_method {
+    let mut source_name = String::from("Unknown Source");
 
+    println!("\n--- Initializing Process ---");
+
+    // Capture text based on the user's choice.
+    let ocr_text: String = match input_method {
         InputMethod::ImagePath | InputMethod::Screenshot => {
             let path = if input_method == InputMethod::ImagePath {
                 let p = get_image_path();
                 source_name = Path::new(&p).file_name().and_then(|s| s.to_str()).unwrap_or(&p).to_string();
                 p
             } else {
-                println!("\nPreparing screenshot...");
+                // Screenshot countdown gives the user time to switch to the right window.
+                println!("\nPreparing to capture screen...");
                 for i in (1..=5).rev() {
-                    print!("Taking screenshot in {}... ", i);
+                    print!("Capturing in {}... ", i);
                     io::stdout().flush().unwrap();
                     thread::sleep(Duration::from_secs(1));
                 }
-                println!("GO!\n");
+                println!("Capturing now!\n");
                 let mut screen = ScreenCapture::new(OUTPUT_DIR);
                 let p = screen.capture_screen().unwrap_or_default();
                 source_name = format!("Screenshot ({})", Path::new(&p).file_name().and_then(|s| s.to_str()).unwrap_or(&p));
@@ -185,33 +185,29 @@ fn main() {
                 let screen = ScreenCapture::new(OUTPUT_DIR);
                 match screen.run_ocr(&path) {
                     Ok(json_str) => {
-                        // Try to parse JSON from Python
+                        // Parse JSON output from the Python script.
                         match serde_json::from_str::<OcrResponse>(&json_str) {
                             Ok(resp) => {
-                                println!("OCR successful (JSON parsed)!");
-                                // Extract expressions from the JSON results if possible
+                                println!("OCR completed successfully!");
                                 let mut seen = std::collections::HashSet::new();
                                 for entry in &resp.results {
-                                    // Clean slightly but keep original for display if helpful
                                     let clean = entry.expression.replace(" ", "");
                                     if !entry.expression.contains("Error") && !seen.contains(&clean) {
-                                        // Use a more math-standard version of the expression
-                                        let math_expr = entry.expression.clone();
-                                        expressions.push(math_expr);
+                                        expressions.push(entry.expression.clone());
                                         seen.insert(clean);
                                     }
                                 }
-                                println!("  OCR engine identified {} potential expressions.", expressions.len());
+                                println!("  System found {} math problems in the image.", expressions.len());
                                 resp.raw_ocr
                             }
                             Err(_) => {
-                                println!("OCR successful (Raw text)!");
+                                // If Python returned plain text instead of JSON.
                                 json_str
                             }
                         }
                     }
                     Err(e) => {
-                        println!("OCR failed: {}. Using sample.", e);
+                        println!("OCR Process failed: {}. Falling back to sample text.", e);
                         get_sample_text()
                     }
                 }
@@ -222,12 +218,12 @@ fn main() {
             let file_path = get_text_file_path();
             source_name = Path::new(&file_path).file_name().and_then(|s| s.to_str()).unwrap_or(&file_path).to_string();
             target_file = Some(file_path.clone());
-            println!("Reading from: {}", file_path);
+            println!("Reading equations from: {}", file_path);
 
             match fs::read_to_string(&file_path) {
                 Ok(content) => content,
                 Err(e) => {
-                    println!("Failed to read file: {}. Using sample.", e);
+                    println!("Failed to read text file: {}.", e);
                     get_sample_text()
                 }
             }
@@ -236,15 +232,13 @@ fn main() {
         _ => get_sample_text(),
     };
 
-    // Step 2.5: Clean input text (ignore previous results)
+    // If reading from a text file, we don't want to re-process old results.
     let cleaned_ocr_text = if input_method == InputMethod::TextFile {
         let mut final_lines = Vec::new();
         for line in ocr_text.lines() {
-            // Stop if we hit the result summary from a previous run
             if line.contains("--- Result Summary ---") {
                 break;
             }
-            // Skip lines that already look like they have a result
             if line.contains(" = ") {
                 continue;
             }
@@ -255,10 +249,9 @@ fn main() {
         ocr_text.clone()
     };
 
-    // Step 3: Find math expressions in the text (Only if we haven't found them via JSON OCR)
-    println!("\n--- Finding Math Expressions ---");
-
+    // If the Python script didn't already extract the math, we use our own detector here.
     if expressions.is_empty() {
+        println!("\n--- Search for Math Problems ---");
         let mut detector = ExpressionDetector::new();
         let detected = detector.detect(&cleaned_ocr_text);
 
@@ -267,38 +260,33 @@ fn main() {
         }
         detector.print_detected();
     } else {
-        println!("Using {} expressions found by OCR engine.", expressions.len());
+        println!("Processing {} expressions identified by the OCR vision system.", expressions.len());
         for (i, expr) in expressions.iter().enumerate() {
             println!("  {}. {}", (b'a' + i as u8) as char, expr);
         }
     }
 
     if expressions.is_empty() {
-        println!("No expressions found in text.");
+        println!("No mathematical expressions were found. Nothing to solve.");
         return;
     }
 
-    // Step 4: Evaluate each expression
-    println!("\n--- Solving ---");
-
-    // Step 4: Evaluate each expression using Native Cross-Platform Evaluator
-    println!("\n--- Solving via Native Math Engine (Mac/Linux/Windows Compatible) ---");
-
+    // Pass the extracted math to the internal math engine.
+    println!("\n--- Solving Problems ---");
     let mut evaluator = ExpressionEvaluator::new();
 
     for expr in &expressions {
         evaluator.evaluate(expr);
     }
 
-    // Step 5: Show Results and Save
-    println!("\n--- Results ---");
+    // Display and save the results.
+    println!("\n--- Finalizing Results ---");
     
-    // Determine output: either global file OR append to the input file
     let output_mode = if let Some(path) = target_file {
-        println!("Saving results and appending to: {}", path);
+        println!("Saving results and appending them to the source file: {}", path);
         OutputFormat::Both(path)
     } else {
-        println!("Saving results to: {}", RESULTS_FILE);
+        println!("Saving results to default log: {}", RESULTS_FILE);
         OutputFormat::Both(RESULTS_FILE.to_string())
     };
 
@@ -307,5 +295,5 @@ fn main() {
     result_mgr.process_results(evaluator.get_results());
     result_mgr.display_results();
 
-    println!("\nAll done! {} expressions solved via Native Math Engine.\n", evaluator.success_count());
+    println!("\nOperation Complete. {} problems successfully solved by the native engine.\n", evaluator.success_count());
 }
