@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 🧮 Screen-Aware Math Automation System
 
 Welcome to the **Screen-Aware Math Automation System**! This is a smart tool that "sees" math problems on your screen or in images and solves them for you automatically. 
@@ -94,6 +93,3 @@ If you use **Option 3 (text file input)**, the results are appended to **both** 
 ---
 *Created for Treeleaf AI.*
 
-=======
-# rust-ocr-automation
->>>>>>> fd586ba2926695430d95d9808638626e70aecbd7
