@@ -22,10 +22,13 @@ Before you start, make sure you have these tools installed on your computer:
 
 1.  **Rust**: The main engine. [Install from here](https://www.rust-lang.org/tools/install).
 2.  **Python 3**: Used for reading text from images. [Install from here](https://www.python.org/downloads/).
-3.  **Tesseract OCR**: The "eye" that reads text.
-    *   **Windows**: [Download installer](https://github.com/UB-Mannheim/tesseract/wiki).
+3.  **Tesseract OCR**: The "eye" that reads text from images. This is **required** — the program will not work without it.
+    *   **Windows**: [Download installer](https://github.com/UB-Mannheim/tesseract/wiki). During installation, make sure to check **"Add to system PATH"** so the program can find it automatically.
     *   **Mac**: Run `brew install tesseract`.
     *   **Linux**: Run `sudo apt install tesseract-ocr`.
+    
+    > **Note for Windows users**: If Tesseract is not in PATH, the script will try to find it in the default install folder (`C:\Program Files\Tesseract-OCR\`). If you installed it somewhere else, you may need to update the path inside `python_ocr/ocr_engine.py`.
+
 4.  **Python Libraries**: You can install all needed libraries at once using the `requirements.txt` file:
     ```bash
     pip install -r requirements.txt
@@ -69,8 +72,24 @@ This version is optimized for **maximum accuracy** in basic math:
 *   `test_images_files/`: A folder for you to put your sample math images or text files.
 *   `output/`: Where your solved answers are saved.
 
+---
+
+## 💾 How Results are Saved
+
+Every time you run the program, the answers are saved in **two places**:
+
+1.  **On your screen** — the result summary is printed directly in the terminal when the program finishes.
+2.  **In `output/results.txt`** — the same summary is also **appended** to this file. This means every run adds new results at the bottom without deleting the old ones.
+
+If you use **Option 3 (text file input)**, the results are appended to **both** `output/results.txt` and the original text file you provided, so you can see the answers right next to the questions.
+
+> **Note**: The `output/` folder is created automatically the first time you run the program. You do not need to create it yourself.
+
+---
+
 > [!TIP]
 > **Pro Tip**: If the program misses a number, make sure your screenshot or image is clear and not too blurry. High-quality screenshots always work best!
 
 ---
 *Created for efficient learning and automation for Treeleaf AI*
+
