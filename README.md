@@ -73,4 +73,4 @@ This version is optimized for **maximum accuracy** in basic math:
 > **Pro Tip**: If the program misses a number, make sure the image is clear and not too blurry. High-quality screenshots work best!
 
 ---
-*Created for efficient learning and automation.*
+*Created for efficient learning and automation for Treeleaf AI*
