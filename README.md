@@ -87,9 +87,21 @@ If you use **Option 3 (text file input)**, the results are appended to **both** 
 
 ---
 
+## 🦀 Rust Concepts Used
+
+This project was built to make good use of core Rust language features:
+
+*   **Structs**: Used to organize related data together. For example, `ExpressionEvaluator`, `ResultManager`, `ScreenCapture`, and `Automator` are all structs that group their data and behaviour in one place.
+*   **Enums**: Used to represent choices clearly. `InputMethod` (Image, Screenshot, TextFile, Exit), `EvalResult` (Success or Error), and `OutputFormat` are all enums — making the code easy to read and safe to handle.
+*   **Ownership**: Rust's ownership system is used throughout to ensure memory is managed correctly without a garbage collector. Each piece of data has exactly one owner at a time.
+*   **Borrowing**: Functions take references (`&str`, `&mut self`) instead of copying data unnecessarily. For example, `evaluate(&mut self, expression: &str)` borrows the expression string rather than taking ownership of it.
+*   **Pattern Matching**: `match` statements are used to handle different cases cleanly, like checking if an OCR result is a `Success` or an `Error` without using messy if-else chains.
+
+---
+
 > [!TIP]
 > **Pro Tip**: If the program misses a number, make sure your screenshot or image is clear and not too blurry. High-quality screenshots always work best!
 
 ---
-*Created for efficient learning and automation for Treeleaf AI*
+*Created for Treeleaf AI.*
 
