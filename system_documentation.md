@@ -1,6 +1,6 @@
 # Math Automation System - Technical Overview
 
-This guide explains how the **Screen-Aware Math Automation System** is built and how the different parts work together. This system is designed for **Treeleaf AI** to solve math problems automatically from images or text.
+This guide explains how the **Screen-Aware Math Automation System** is built and how the different parts work together. This system is designed for **Treeleaf AI** to automatically solve math equations using **OCR Tesseract** and the **Enigo Rust library**.
 
 ---
 
@@ -9,41 +9,48 @@ This guide explains how the **Screen-Aware Math Automation System** is built and
 | File | What it does |
 | :--- | :--- |
 | `main.rs` | The main controller. It asks the user for input and coordinates the whole process. |
-| `automation.rs` | Handles computer interactions like typing and mouse movement. |
-| `expression_detector.rs` | Uses patterns (Regex) to search for math equations in plain text. |
-| `expression_evaluator.rs` | The "Math Engine". It is a custom parser that solves equations. |
-| `result_manager.rs` | Formats the final answers and saves them to a results file. |
+| `automation.rs` | Handles standard computer interactions like typing text using the Enigo Rust Library. |
+| `expression_detector.rs` | Uses text patterns (Regex) to search for math equations in plain text documents. |
+| `expression_evaluator.rs` | The "Math Engine". A custom parser that accurately evaluates the math formulas. |
+| `result_manager.rs` | Formats all final answers and saves them strictly to a results file. |
 | `screen_capture.rs` | Takes screenshots and communicates with the Python OCR script. |
 
 ---
 
-## 🧠 How the System Works
+## 🧠 System Features & Flow
 
-### 1. Vision (OCR)
-When an image is provided, the system uses a **Python script** (`ocr_engine.py`) to "read" the picture. 
-- It uses **OpenCV** to clean the image (removing blur and sharpening characters).
-- It uses **Tesseract OCR** to turn pixels into characters.
-- It filtered results to ignore things like "1." or "a." so it only sees the math.
+There are 3 main ways to perform the automation:
+1. **By image path**: Passing a direct file path to an image for OCR reading.
+2. **By taking screenshot**: Triggering a screenshot via the system's screen capture handler after an automated 5-second countdown.
+3. **By using the .txt files**: Provide a direct path to a `.txt` file containing math equations.
 
-### 2. Detection
-If we are reading from a text file instead of an image, the **Expression Detector** scans every word. It uses **Regular Expressions** to find sequences of digits and math symbols (like `+`, `-`, `*`). It is smart enough to skip standard text and only grab the equations.
+### 1. Vision and Extraction (OCR)
+When an image is provided, the system uses a **Python script** (`ocr_engine.py`) to process the file. 
+- It uses **OpenCV** to denoise the image and standardize lighting.
+- It then uses **Tesseract OCR** to turn the graphic math problems into regular text.
+- We included rules to ignore list numbering like "1." or "a." so only math is returned.
+
+### 2. Built-in Fallback Strategy
+Because images can sometimes be messy or files may be empty, the system implements a strict fallback behavior:
+If **no real math equations** are detected by either OCR or the text file parser, the code will use a **sample text block** (with pre-written math) as a failsafe to demonstrate the engine's capability without crashing.
 
 ### 3. Solving (The Engine)
-Instead of using a simple calculator, we built a **Recursive Descent Parser** in Rust. 
-- It follows **BODMAS/PEMDAS** rules (Multiplication before Addition).
-- It can handle brackets `( )` and even leading minus signs like `-5 + 10`.
-- Because it is written in pure Rust, it works perfectly on **Windows, Mac, and Linux** without needing extra software.
+Instead of typing into a separate calculator app, we built a **Recursive Descent Parser** in Rust to solve math perfectly. 
+- It respects the correct order of operations (Multiplication and Division before Addition and Subtraction).
+- It handles brackets `( )` and even supports negative signs.
+- This creates true cross-platform behavior so the software works beautifully on **Windows, Mac, and Linux** using pure Rust code.
 
 ### 4. Output
-Finally, the **Result Manager** collects all the answers. It prints a clean summary to your screen and appends the same summary to `output/results.txt`. If you provided a text file as input, it can even append the answers directly to that file.
+Finally, the **Result Manager** gathers all calculated answers. It displays a summary on your console window and appends the answers securely to the main file at `output/results.txt`. If you chose a `.txt` file as input, the answers can be added directly back to your source file as an organized list.
 
 ---
 
-## 🛠️ Requirements
-- **Rust**: For the main logic.
-- **Python 3**: For image processing.
-- **Tesseract OCR**: For reading text from images.
-- **Requirements.txt**: All Python libraries are listed here for easy installation.
+## 🛠️ Main Requirements
+- **Rust Compiler**: To build and run the main application logic and Enigo automations.
+- **Python 3**: For handling the specific OpenCV image enhancements.
+- **Tesseract OCR**: Pre-installed on the host operating system to transcribe image pixels into characters.
+- **requirements.txt**: Manages the Python libraries securely so they can be installed with a single command.
+- **test_images_files**: Any `.png` or `.txt` you provide for testing the system.
 
 ---
 *Document prepared for Treeleaf AI technical review.*

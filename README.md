@@ -2,17 +2,17 @@
 
 Welcome to the **Screen-Aware Math Automation System**! This is a smart tool that "sees" math problems on your screen or in images and solves them for you automatically. 
 
-It is built using **Rust** for speed and **Python** for its powerful "eyes" (OCR). Unlike typical tools, this one works everywhere—Windows, Mac, and Linux!
+It uses **OCR Tesseract** and the **Enigo Rust library** to provide a smooth, cross-platform experience across Windows, Mac, and Linux.
 
 ---
 
 ## 🌟 What makes this special?
 
 *   **Native Math Engine**: We don't just open a calculator; we built one inside the program. It is fast, accurate, and works on any computer.
-*   **Smart Vision (OCR)**: It can read math even if there are logos, pictures, or notes around the numbers.
+*   **Smart Vision (OCR)**: Uses Tesseract OCR to read math even if there are logos, pictures, or notes around the numbers.
 *   **List Cleaning**: It is smart enough to ignore serial numbers like `1.`, `a.`, or `No. 1` at the start of your problems.
 *   **Result Tracking**: Every calculation is saved in `output/results.txt` with a label telling you exactly which file or screenshot it came from.
-*   **Cross-Platform**: Fully compatible with Windows, macOS, and Linux.
+*   **Fallback Strategy**: If no math is found or the image cannot be read, the program falls back to a built-in sample text to demonstrate its solving capabilities safely.
 
 ---
 
@@ -35,18 +35,18 @@ Before you start, make sure you have these tools installed on your computer:
 
 ## 🚀 How to use it
 
-1.  **Open your terminal** in the project folder.
-2.  **Run the program**:
-    ```bash
-    cargo run
-    ```
-3.  **Choose your input**:
-    *   **Option 1**: Type the path to an image file (e.g., `test_images/homework.png`).
-    *   **Option 2**: Take a screenshot. The program will wait 5 seconds so you can switch to the window you want to capture!
-    *   **Option 3**: Give it a text file with math written inside.
-4.  **Check your results**:
-    *   The answers will appear on your screen.
-    *   A permanent copy is saved in `output/results.txt`.
+There are 3 ways to perform the automation:
+
+1. **By image path**: Type the path to an image file (e.g., `test_images_files/calculation.txt`).
+2. **By taking screenshot**: Screen capture mode gives you 5 seconds to switch to your math problems before snapping a picture.
+3. **By using the .txt files**: Give it a direct text file with math written inside.
+
+To start the program, open your terminal in the project folder and run:
+```bash
+cargo run
+```
+
+Then, follow the menu to select your preferred option. The answers will appear directly on your screen, and a permanent copy will be saved in `output/results.txt`.
 
 ---
 
@@ -64,13 +64,13 @@ This version is optimized for **maximum accuracy** in basic math:
 
 ## 📁 Project Structure
 
-*   `src/`: The core Rust code (Math Engine & Automation).
-*   `python_ocr/`: The Python "Vision" script.
-*   `test_images/`: A folder for you to put your math images.
+*   `src/`: The core Rust code including the math engine and the Enigo automation setup.
+*   `python_ocr/`: The Python script that runs OpenCV and Tesseract.
+*   `test_images_files/`: A folder for you to put your sample math images or text files.
 *   `output/`: Where your solved answers are saved.
 
 > [!TIP]
-> **Pro Tip**: If the program misses a number, make sure the image is clear and not too blurry. High-quality screenshots work best!
+> **Pro Tip**: If the program misses a number, make sure your screenshot or image is clear and not too blurry. High-quality screenshots always work best!
 
 ---
 *Created for efficient learning and automation for Treeleaf AI*
